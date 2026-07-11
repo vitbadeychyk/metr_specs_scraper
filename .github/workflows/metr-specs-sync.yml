@@ -1,1 +1,42 @@
+name: Metr Specs Sync
 
+# Три способи запуску:
+# 1) repository_dispatch — "будиться" від іншого репозиторію (kidsride-sync)
+#    одразу після того, як той додав/оновив товари в Supabase.
+# 2) workflow_dispatch — ручний запуск з вкладки Actions, коли потрібно.
+# 3) schedule — резервний щоденний прогін на випадок, якщо dispatch
+#    з якоїсь причини не долетів (мережевий збій, токен прострочився тощо).
+on:
+  repository_dispatch:
+    types: [products-synced]
+  workflow_dispatch: {}
+  schedule:
+    - cron: '0 3 * * *'   # щодня о 03:00 UTC (06:00 за Києвом)
+
+# Не даємо двом прогонам працювати одночасно (щоб не подвоювати навантаження
+# на сайт постачальника і не гонитись за одними й тими ж товарами).
+concurrency:
+  group: metr-specs-sync
+  cancel-in-progress: false
+
+jobs:
+  run-scraper:
+    runs-on: ubuntu-latest
+    timeout-minutes: 350   # запас: товарів багато, паузи між запитами свідомо великі
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run metr_specs_scraper.py
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: python metr_specs_scraper.py
