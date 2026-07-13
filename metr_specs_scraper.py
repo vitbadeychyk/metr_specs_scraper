@@ -48,6 +48,7 @@ import json
 import logging
 import random
 from typing import Optional
+from urllib.parse import urljoin
 
 import requests
 from bs4 import BeautifulSoup, NavigableString
@@ -251,7 +252,11 @@ def build_sku_map_for_category(session: requests.Session, category_id: int) -> d
             if link_text:
                 # Зберігаємо ВЕСЬ текст посилання як кандидата — звірка по точному SKU
                 # відбудеться на етапі match_products() через прямий пошук підрядка.
-                sku_map[link_text] = {"site_id": site_id, "url": f"{SITE_BASE}{a['href']}"}
+                # ВАЖЛИВО: a['href'] на цьому сайті вже буває АБСОЛЮТНИМ URL
+                # (https://metr-plus.com.ua/...), тому НЕ можна просто приклеювати
+                # SITE_BASE спереду (вийде здвоєний домен) — використовуємо urljoin,
+                # який коректно обробляє і відносні, і вже повні посилання.
+                sku_map[link_text] = {"site_id": site_id, "url": urljoin(SITE_BASE + "/", a["href"])}
                 found_on_page += 1
 
         log.info("Категорія %d, сторінка %d: знайдено %d посилань на товари", category_id, page, found_on_page)
