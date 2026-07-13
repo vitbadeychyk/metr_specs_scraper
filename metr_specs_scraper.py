@@ -389,6 +389,12 @@ def main():
         by_category.setdefault(p["category_id"], []).append(p)
 
     session = requests.Session()
+    session.cookies.set(
+       "itemonpage",
+       "96",
+       domain="metr-plus.com.ua",
+       path="/"
+    )
 
     total_ok = 0
     total_notfound = 0
