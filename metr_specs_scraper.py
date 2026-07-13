@@ -218,7 +218,7 @@ def build_sku_map_for_category(session: requests.Session, category_id: int) -> d
     """Повертає {sku: product_id_на_сайті} для всієї категорії, обходячи пагінацію."""
     sku_map = {}
     page = 1
-    empty_pages_in_a_row = 0
+    seen_first_urls = set()
 
     while True:
         page_url = f"{SITE_BASE}/index.php?section={category_id}&lang=uk"
@@ -234,6 +234,18 @@ def build_sku_map_for_category(session: requests.Session, category_id: int) -> d
             break
 
         soup = BeautifulSoup(html, "html.parser")
+
+        first_product = None
+        for a in soup.find_all("a", href=True):
+            if SKU_LINK_RE.search(a["href"]):
+                first_product = a
+                break
+        if first_product:
+            first_href = first_product["href"]
+            if first_href in seen_first_urls:
+                log.info("Категорія %d: виявлено повтор останньої сторінки, завершую обхід.", category_id)
+                break
+            seen_first_urls.add(first_href)
 
         found_on_page = 0
         for a in soup.find_all("a", href=True):
@@ -260,13 +272,6 @@ def build_sku_map_for_category(session: requests.Session, category_id: int) -> d
                 found_on_page += 1
 
         log.info("Категорія %d, сторінка %d: знайдено %d посилань на товари", category_id, page, found_on_page)
-
-        if found_on_page == 0:
-            empty_pages_in_a_row += 1
-            if empty_pages_in_a_row >= 2:
-                break
-        else:
-            empty_pages_in_a_row = 0
 
         # Обмежник на випадок нескінченної пагінації через несподівану розмітку
         if page > 60:
@@ -389,12 +394,6 @@ def main():
         by_category.setdefault(p["category_id"], []).append(p)
 
     session = requests.Session()
-    session.cookies.set(
-       "itemonpage",
-       "96",
-       domain="metr-plus.com.ua",
-       path="/"
-    )
 
     total_ok = 0
     total_notfound = 0
