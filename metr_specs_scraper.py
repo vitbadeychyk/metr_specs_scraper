@@ -58,10 +58,10 @@ from bs4 import BeautifulSoup, NavigableString
 # ---------------------------------------------------------------------------
 
 SUPABASE_URL = os.environ.get("SUPABASE_URL", "").rstrip("/")
-SUPABASE_KEY = os.environ.get("SUPABASE_SERVICE_ROLE_KEY", "")
+SUPABASE_KEY = os.environ.get("SUPABASE_SECRET_KEY") or os.environ.get("SUPABASE_SERVICE_ROLE_KEY", "")
 
 if not SUPABASE_URL or not SUPABASE_KEY:
-    print("ERROR: потрібні змінні середовища SUPABASE_URL і SUPABASE_SERVICE_ROLE_KEY", file=sys.stderr)
+    print("ERROR: потрібні змінні середовища SUPABASE_URL і SUPABASE_SECRET_KEY", file=sys.stderr)
     sys.exit(1)
 
 SITE_BASE = "https://metr-plus.com.ua"
@@ -166,7 +166,8 @@ def polite_sleep():
 def supabase_headers():
     return {
         "apikey": SUPABASE_KEY,
-        "Authorization": f"Bearer {SUPABASE_KEY}",
+        **({"Authorization": f"Bearer {SUPABASE_KEY}"} if SUPABASE_KEY.startswith("eyJ") else {}),
+        "User-Agent": "KidsRideMetrSpecs/1.0",
         "Content-Type": "application/json",
     }
 
